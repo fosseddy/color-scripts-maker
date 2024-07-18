@@ -1,4 +1,4 @@
-export class Vec2 {
+class Vec2 {
     constructor(
         public x: number,
         public y: number
@@ -14,8 +14,8 @@ class Mouse {
     pos = new Vec2(0, 0);
     posglob = new Vec2(0, 0);
     isClicked = false;
-    isMouseDown = false;
-    isMouseUp = false;
+    isDown = false;
+    isUp = false;
 
     constructor(canvas: HTMLCanvasElement) {
         window.addEventListener("mousemove", (e: MouseEvent) => {
@@ -31,13 +31,13 @@ class Mouse {
         });
 
         window.addEventListener("mousedown", () => {
-            this.isMouseDown = true;
-            this.isMouseUp = false;
+            this.isDown = true;
+            this.isUp = false;
         });
 
         window.addEventListener("mouseup", () => {
-            this.isMouseUp = true;
-            this.isMouseDown = false;
+            this.isUp = true;
+            this.isDown = false;
         });
     }
 
@@ -59,34 +59,114 @@ canvas.width = 500;
 canvas.height = 300;
 canvas.style.border = "1px solid black";
 
-let drag = false;
-let dragoff = 0;
+const SIDEBAR_SIZE = 10;
+
+interface Sidebar {
+    pos: Vec2;
+    size: Vec2;
+    color: string;
+    isDragging: boolean;
+    cursorOffset: Vec2;
+};
+
+const bottomSidebar: Sidebar = {
+    pos: new Vec2(0, canvas.height - SIDEBAR_SIZE),
+    size: new Vec2(canvas.width - SIDEBAR_SIZE, SIDEBAR_SIZE),
+    color: "gray",
+    isDragging: false,
+    cursorOffset: new Vec2(0, 0)
+};
+
+const rightSidebar: Sidebar = {
+    pos: new Vec2(canvas.width - SIDEBAR_SIZE, 0),
+    size: new Vec2(SIDEBAR_SIZE, canvas.height - SIDEBAR_SIZE),
+    color: "gray",
+    isDragging: false,
+    cursorOffset: new Vec2(0, 0)
+};
+
+const cornerSidebar: Sidebar = {
+    pos: new Vec2(canvas.width - SIDEBAR_SIZE, canvas.height - SIDEBAR_SIZE),
+    size: new Vec2(SIDEBAR_SIZE, SIDEBAR_SIZE),
+    color: "gray",
+    isDragging: false,
+    cursorOffset: new Vec2(0, 0)
+};
+
+function drawSidebar(sb: Sidebar): void {
+    const {pos, size, color} = sb;
+
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.fillRect(pos.x, pos.y, size.x, size.y);
+    ctx.restore();
+}
 
 let prevtime = 0;
 function frames(time: number): void {
     const dt = (time - prevtime) / 1000;
     prevtime = time;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    canvas.style.cursor = "default";
-    if (mouse.pos.x > canvas.width - 20 && mouse.pos.x < canvas.width) {
-        canvas.style.cursor = "pointer";
-        drag = mouse.isMouseDown;
-        if (drag) {
-            if (dragoff === 0) {
-                dragoff = canvas.width - mouse.posglob.x;
-            }
-        } else {
-            if (dragoff !== 0) {
-                dragoff = 0;
+    if (mouse.isDown) {
+        if (!rightSidebar.isDragging && !bottomSidebar.isDragging && !cornerSidebar.isDragging) {
+            if (mouse.isInsideRect(rightSidebar)) {
+                rightSidebar.isDragging = true;
+                rightSidebar.cursorOffset.x = canvas.width - mouse.posglob.x;
+            } else if (mouse.isInsideRect(bottomSidebar)) {
+                bottomSidebar.isDragging = true;
+                bottomSidebar.cursorOffset.y = canvas.height - mouse.posglob.y;
+            } else if (mouse.isInsideRect(cornerSidebar)) {
+                cornerSidebar.isDragging = true;
+                cornerSidebar.cursorOffset.x = canvas.width - mouse.posglob.x;
+                cornerSidebar.cursorOffset.y = canvas.height - mouse.posglob.y;
             }
         }
+    } else {
+        rightSidebar.isDragging = false;
+        bottomSidebar.isDragging = false;
+        cornerSidebar.isDragging = false;
     }
 
-    if (drag) {
-        canvas.width = mouse.posglob.x + dragoff;
+    if (rightSidebar.isDragging) {
+        canvas.width = mouse.posglob.x + rightSidebar.cursorOffset.x;
+        rightSidebar.pos.x = canvas.width - SIDEBAR_SIZE;
+        bottomSidebar.size.x = canvas.width - SIDEBAR_SIZE;
+        cornerSidebar.pos.x = canvas.width - SIDEBAR_SIZE;
+    } else if (bottomSidebar.isDragging) {
+        canvas.height = mouse.posglob.y + bottomSidebar.cursorOffset.y;
+        bottomSidebar.pos.y = canvas.height - SIDEBAR_SIZE;
+        rightSidebar.size.y = canvas.height - SIDEBAR_SIZE;
+        cornerSidebar.pos.y = canvas.height - SIDEBAR_SIZE;
+    } else if (cornerSidebar.isDragging) {
+        canvas.width = mouse.posglob.x + cornerSidebar.cursorOffset.x;
+        canvas.height = mouse.posglob.y + cornerSidebar.cursorOffset.y;
+
+        rightSidebar.pos.x = canvas.width - SIDEBAR_SIZE;
+        bottomSidebar.size.x = canvas.width - SIDEBAR_SIZE;
+        cornerSidebar.pos.x = canvas.width - SIDEBAR_SIZE;
+
+        bottomSidebar.pos.y = canvas.height - SIDEBAR_SIZE;
+        rightSidebar.size.y = canvas.height - SIDEBAR_SIZE;
+        cornerSidebar.pos.y = canvas.height - SIDEBAR_SIZE;
+
     }
+
+    rightSidebar.color = "gray";
+    bottomSidebar.color = "gray";
+    cornerSidebar.color = "gray";
+    if (rightSidebar.isDragging || mouse.isInsideRect(rightSidebar)) {
+        rightSidebar.color = "lightgray";
+    } else if (bottomSidebar.isDragging || mouse.isInsideRect(bottomSidebar)) {
+        bottomSidebar.color = "lightgray";
+    } else if (cornerSidebar.isDragging || mouse.isInsideRect(cornerSidebar)) {
+        cornerSidebar.color = "lightgray";
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawSidebar(rightSidebar);
+    drawSidebar(bottomSidebar);
+    drawSidebar(cornerSidebar);
 
     mouse.reset();
     requestAnimationFrame(frames);
