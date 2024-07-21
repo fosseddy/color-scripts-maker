@@ -1,5 +1,5 @@
 const CELL_W = 16;
-const CELL_H = CELL_W * 1.8;
+const CELL_H = CELL_W * 1.5;
 
 interface Vec2 {
     x: number;
@@ -17,10 +17,17 @@ interface Char {
     symbol: string;
 }
 
+interface Brush {
+    fgcolor: string;
+    bgcolor: string;
+    symbol: string
+}
+
 interface Workspace {
     panels: Panel[];
     input: Char[][];
     dragCursorOffset: Vec2;
+    brush: Brush;
 }
 
 function createPanel(tag: keyof HTMLElementTagNameMap): Panel {
@@ -31,6 +38,7 @@ function createPanel(tag: keyof HTMLElementTagNameMap): Panel {
     element.style.position = "absolute";
     element.style.border = "1px solid black";
 
+    header.style.borderBottom = "1px solid black";
     header.style.background = "lightgray";
     header.style.height = "16px";
 
@@ -44,8 +52,6 @@ function createPanel(tag: keyof HTMLElementTagNameMap): Panel {
 
 function createCanvas(): Panel {
     const p = createPanel("div");
-
-    p.header.style.borderBottom = "1px solid black";
 
     p.content.style.width = `${40 * CELL_W}px`;
     p.content.style.height = `${12 * CELL_H}px`;
@@ -62,17 +68,80 @@ function createTextArea(): Panel {
     const p = createPanel("textarea");
 
     p.element.style.border = "none";
-    p.element.style.left = `${330 + 20 * CELL_W}px`;
+    p.element.style.left = `${640 + 20}px`;
 
     p.header.style.border = "1px solid black";
     p.header.style.borderBottom = "none";
 
     p.content.style.borderRadius = "0px";
     p.content.style.border= "1px solid black";
+
     // TODO(art): hard coded
     p.content.style.width = `${20 * CELL_W}px`;
     p.content.style.height = `${8 * CELL_H}px`;
 
+
+    return p;
+}
+
+const colors: string[] = [
+    "#000000",
+    "#ff0000",
+    "#00ff00",
+    "#ffff00",
+    "#0000ff",
+    "#ff00ff",
+    "#00ffff",
+    "#ffffff",
+
+    "#000000",
+    "#ff0000",
+    "#00ff00",
+    "#ffff00",
+    "#0000ff",
+    "#ff00ff",
+    "#00ffff",
+    "#ffffff",
+];
+
+function createPalette(ws: Workspace): Panel {
+    const p = createPanel("div");
+
+    p.content.style.width = "200px";
+    p.content.style.height = "100px";
+
+    p.element.style.left = `${640 + 20}px`;
+    p.element.style.top = `${246 + 20}px`;
+
+    let row = document.createElement("div");
+    for (const [i, color] of colors.entries()) {
+        const button = document.createElement("button");
+        button.style.width = `20px`;
+        button.style.height = `20px`;
+        button.style.background = color;
+
+        button.addEventListener("click", (event: MouseEvent) => {
+            if (event.shiftKey) {
+                ws.brush.bgcolor = color;
+            } else {
+                ws.brush.fgcolor = color;
+            }
+
+            console.log(ws.brush);
+        });
+
+        row.appendChild(button);
+
+        if (i === 7 || i === 15) {
+            row.style.display = "flex";
+            row.style.justifyContent = "space-between";
+            if (i === 7) {
+                row.style.marginBottom = "5px";
+            }
+            p.content.appendChild(row);
+            row = document.createElement("div");
+        }
+    }
 
     return p;
 }
@@ -85,26 +154,40 @@ function makeGrid(ws: Workspace, canvas: Panel): void {
         canvas.content.removeChild(canvas.content.firstChild);
     }
 
+    let cw = `${CELL_W}px`;
+    let ch = `${CELL_H}px`;
+
     for (let i = 0; i < h; i++) {
         const row = document.createElement("div");
         row.style.display = "flex";
 
         for (let j = 0; j < w; j++) {
-            const cell = document.createElement("div");
+            const cell = document.createElement("button");
 
             cell.style.border = "1px solid lightgray";
-            cell.style.minWidth = `${CELL_W}px`;
-            cell.style.minHeight = `${CELL_H}px`;
-            cell.style.width = `${CELL_W}px`;
-            cell.style.height = `${CELL_H}px`;
+            cell.style.background = "white";
+            cell.style.minWidth = cw;
+            cell.style.minHeight = ch;
+            cell.style.width = cw;
+            cell.style.height = ch;
             cell.style.display = "flex";
             cell.style.alignItems = "center";
             cell.style.justifyContent = "center";
+            cell.style.fontSize = "16px";
 
             cell.textContent = "";
             if (i < ws.input.length && j < ws.input[i]!.length) {
                 cell.textContent = ws.input[i]![j]!.symbol;
             }
+
+            cell.addEventListener("click", (event: MouseEvent) => {
+                if (event.shiftKey) {
+                    cell.style.background = ws.brush.bgcolor;
+                } else {
+                    cell.textContent = ws.brush.symbol;
+                    cell.style.color = ws.brush.fgcolor;
+                }
+            });
 
             row.appendChild(cell);
         }
@@ -116,8 +199,9 @@ function makeGrid(ws: Workspace, canvas: Panel): void {
 function initWorkspace(ws: Workspace): void {
     const canvas = createCanvas();
     const textarea = createTextArea();
+    const palette = createPalette(ws);
 
-    ws.panels.push(canvas, textarea);
+    ws.panels.push(canvas, textarea, palette);
 
     makeGrid(ws, canvas);
 
@@ -147,6 +231,11 @@ function initWorkspace(ws: Workspace): void {
 const workspace: Workspace = {
     panels: [],
     input: [],
+    brush: {
+        fgcolor: colors[0]!,
+        bgcolor: colors[7]!,
+        symbol: "█"
+    },
     dragCursorOffset: {x: 0, y: 0}
 };
 
