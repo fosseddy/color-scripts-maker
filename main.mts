@@ -1,247 +1,218 @@
-class Vec2 {
-    constructor(
-        public x: number,
-        public y: number
-    ) {}
+const CELL_W = 16;
+const CELL_H = CELL_W * 1.8;
+
+interface Vec2 {
+    x: number;
+    y: number;
 }
 
-interface Rect {
-    pos: Vec2;
-    size: Vec2;
-    color: string;
+interface Panel {
+    element: HTMLDivElement;
+    header: HTMLDivElement;
+    content: HTMLElement;
+    isDragged: boolean;
 }
 
-class Mouse {
-    pos = new Vec2(0, 0);
-    posglob = new Vec2(0, 0);
-    isClicked = false;
-    isDown = false;
-    isUp = false;
+interface Char {
+    symbol: string;
+}
 
-    constructor(canvas: HTMLCanvasElement) {
-        window.addEventListener("mousemove", (e: MouseEvent) => {
-            this.posglob.x = e.x;
-            this.posglob.y = e.y;
+interface Workspace {
+    panels: Panel[];
+    input: Char[][];
+    dragCursorOffset: Vec2;
+}
 
-            this.pos.x = e.x - canvas.offsetLeft;
-            this.pos.y = e.y - canvas.offsetTop;
-        });
+function createPanel(tag: keyof HTMLElementTagNameMap): Panel {
+    const element = document.createElement("div");
+    const header = element.appendChild(document.createElement("div"));
+    const content = element.appendChild(document.createElement(tag));
 
-        window.addEventListener("click", () => {
-            this.isClicked = true;
-        });
+    element.style.position = "absolute";
+    element.style.border = "1px solid black";
 
-        window.addEventListener("mousedown", () => {
-            this.isDown = true;
-        });
+    header.style.background = "lightgray";
+    header.style.height = "16px";
 
-        window.addEventListener("mouseup", () => {
-            this.isUp = true;
-        });
-    }
-
-    reset(): void {
-        this.isClicked = false;
-        this.isDown = false;
-        this.isUp = false;
-    }
-
-    isInsideRect(r: Rect): boolean {
-        return this.pos.x >= r.pos.x && this.pos.x <= r.pos.x + r.size.x &&
-               this.pos.y >= r.pos.y && this.pos.y <= r.pos.y + r.size.y;
+    return {
+        element,
+        header,
+        content,
+        isDragged: false
     }
 }
 
-const RESIZER_SIDE = 10;
-const CELL_W = 15;
-const CELL_H = CELL_W * 1.7;
+function createCanvas(): Panel {
+    const p = createPanel("div");
 
-const canvas: HTMLCanvasElement = document.querySelector("canvas")!;
-const ctx: CanvasRenderingContext2D = canvas.getContext("2d")!;
-const mouse = new Mouse(canvas);
+    p.header.style.borderBottom = "1px solid black";
 
-canvas.width = 24 * CELL_W + RESIZER_SIDE;
-canvas.height = 8 * CELL_H + RESIZER_SIDE;
-canvas.style.border = "1px solid black";
+    p.content.style.width = `${40 * CELL_W}px`;
+    p.content.style.height = `${12 * CELL_H}px`;
+    p.content.style.resize = "both";
+    p.content.style.overflow = "hidden";
+    p.content.style.display = "flex";
+    p.content.style.flexDirection = "column";
+    p.content.style.background = "white";
 
-let activeResizer: Rect|null = null;
-const cursorOffset = new Vec2(0, 0);
+    return p;
+}
 
-const rightResizer: Rect = {
-    pos: new Vec2(canvas.width - RESIZER_SIDE, 0),
-    size: new Vec2(RESIZER_SIDE, canvas.height - RESIZER_SIDE),
-    color: "gray",
-};
+function createTextArea(): Panel {
+    const p = createPanel("textarea");
 
-const bottomResizer: Rect = {
-    pos: new Vec2(0, canvas.height - RESIZER_SIDE),
-    size: new Vec2(canvas.width - RESIZER_SIDE, RESIZER_SIDE),
-    color: "gray",
-};
+    p.element.style.border = "none";
+    p.element.style.left = `${330 + 20 * CELL_W}px`;
 
-const cornerResizer: Rect = {
-    pos: new Vec2(canvas.width - RESIZER_SIDE, canvas.height - RESIZER_SIDE),
-    size: new Vec2(RESIZER_SIDE, RESIZER_SIDE),
-    color: "gray",
-};
+    p.header.style.border = "1px solid black";
+    p.header.style.borderBottom = "none";
 
-const textarea: HTMLTextAreaElement = document.querySelector("textarea")!;
-textarea.addEventListener("input", () => {
-    for (const row of buf) {
-        for (const cell of row) {
-            cell.symbol = "";
-        }
+    p.content.style.borderRadius = "0px";
+    p.content.style.border= "1px solid black";
+    // TODO(art): hard coded
+    p.content.style.width = `${20 * CELL_W}px`;
+    p.content.style.height = `${8 * CELL_H}px`;
+
+
+    return p;
+}
+
+function makeGrid(ws: Workspace, canvas: Panel): void {
+    let w = Math.round(parseInt(canvas.content.style.width) / CELL_W);
+    let h = Math.round(parseInt(canvas.content.style.height) / CELL_H);
+
+    while (canvas.content.firstChild) {
+        canvas.content.removeChild(canvas.content.firstChild);
     }
 
-    const lines = textarea.value.split("\n");
+    for (let i = 0; i < h; i++) {
+        const row = document.createElement("div");
+        row.style.display = "flex";
 
-    for (let row = 0; row < buf.length; row++) {
-        for (let cell = 0; cell < buf[row]!.length; cell++) {
-            if (row < lines.length && cell < lines[row]!.length) {
-                buf[row]![cell]!.symbol = lines[row]![cell]!;
+        for (let j = 0; j < w; j++) {
+            const cell = document.createElement("div");
+
+            cell.style.border = "1px solid lightgray";
+            cell.style.minWidth = `${CELL_W}px`;
+            cell.style.minHeight = `${CELL_H}px`;
+            cell.style.width = `${CELL_W}px`;
+            cell.style.height = `${CELL_H}px`;
+            cell.style.display = "flex";
+            cell.style.alignItems = "center";
+            cell.style.justifyContent = "center";
+
+            cell.textContent = "";
+            if (i < ws.input.length && j < ws.input[i]!.length) {
+                cell.textContent = ws.input[i]![j]!.symbol;
             }
+
+            row.appendChild(cell);
+        }
+
+        canvas.content.appendChild(row);
+    }
+}
+
+function initWorkspace(ws: Workspace): void {
+    const canvas = createCanvas();
+    const textarea = createTextArea();
+
+    ws.panels.push(canvas, textarea);
+
+    makeGrid(ws, canvas);
+
+    const ta = textarea.content as HTMLTextAreaElement;
+
+    ta.addEventListener("input", () => {
+        ws.input = [];
+
+        const lines = ta.value.split("\n");
+
+        for (const line of lines) {
+            const cx: Char[] = [];
+            for (const c of line) {
+                cx.push({symbol: c});
+            }
+            ws.input.push(cx);
+        }
+
+        makeGrid(ws, canvas);
+    });
+
+    new ResizeObserver(() => {
+        makeGrid(ws, canvas);
+    }).observe(canvas.content);
+}
+
+const workspace: Workspace = {
+    panels: [],
+    input: [],
+    dragCursorOffset: {x: 0, y: 0}
+};
+
+initWorkspace(workspace);
+
+document.body.style.overflow = "hidden";
+document.body.style.cursor = "auto";
+document.body.style.font = "20px monospace";
+
+for (const p of workspace.panels) {
+    document.body.appendChild(p.element);
+
+    p.header.addEventListener("mouseover", () => {
+        if (!p.isDragged) {
+            document.body.style.cursor = "grab";
+        }
+    });
+
+    p.header.addEventListener("mouseout", () => {
+        if (!p.isDragged) {
+            document.body.style.cursor = "auto";
+        }
+    });
+
+    p.header.addEventListener("mousedown", (event: MouseEvent) => {
+        p.isDragged = true;
+        workspace.dragCursorOffset = {x: p.element.offsetLeft - event.x, y: p.element.offsetTop - event.y};
+
+        document.body.style.cursor = "grabbing";
+        p.header.style.background = "black";
+
+        for (const pp of workspace.panels) {
+            pp.element.style.zIndex = "0";
+        }
+        p.element.style.zIndex = "1";
+    });
+}
+
+window.addEventListener("mouseup", (event: MouseEvent) => {
+    for (const p of workspace.panels) {
+        if (p.isDragged) {
+            document.body.style.cursor = "grab";
+            p.header.style.background = "lightgray";
+            p.isDragged = false;
+
+            if (p.element.offsetTop < 0) {
+                p.element.style.top = "0px";
+            } else if (p.element.offsetTop + CELL_H > window.innerHeight) {
+                p.element.style.top = `${window.innerHeight - CELL_H}px`;
+            }
+
+            if (p.element.offsetLeft + p.element.offsetWidth < CELL_W*2) {
+                p.element.style.left = `-${p.element.offsetWidth - CELL_W*2}px`;
+            } else if (p.element.offsetLeft + CELL_W*2 > window.innerWidth) {
+                p.element.style.left = `${window.innerWidth - CELL_W*2}px`;
+            }
+
         }
     }
 });
 
-interface Cell {
-    pos: Vec2;
-    size: Vec2;
-    symbol: string;
-}
-
-let buf: Cell[][] = makeCells();
-
-function makeCells(): Cell[][] {
-    const cx: Cell[][] = [];
-
-    for (let y = 0; y < canvas.height - RESIZER_SIDE; y += CELL_H) {
-        const c: Cell[] = [];
-
-        for (let x = 0; x < canvas.width - RESIZER_SIDE; x += CELL_W) {
-            c.push({
-                pos: new Vec2(x, y),
-                size: new Vec2(CELL_W, CELL_H),
-                symbol: ""
-            });
-        }
-
-        cx.push(c);
-    }
-
-    return cx;
-}
-
-let prevtime = 0;
-function frames(time: number): void {
-    const dt = (time - prevtime) / 1000;
-    prevtime = time;
-
-    if (mouse.isDown) {
-        if (mouse.isInsideRect(rightResizer)) {
-            activeResizer = rightResizer;
-        } else if (mouse.isInsideRect(bottomResizer)) {
-            activeResizer = bottomResizer;
-        } else if (mouse.isInsideRect(cornerResizer)) {
-            activeResizer = cornerResizer;
-        }
-
-        if (activeResizer) {
-            cursorOffset.x = canvas.width - mouse.pos.x;
-            cursorOffset.y = canvas.height - mouse.pos.y;
+window.addEventListener("mousemove", (event: MouseEvent) => {
+    for (const p of workspace.panels) {
+        if (p.isDragged) {
+            p.element.style.left = `${event.x + workspace.dragCursorOffset.x}px`;
+            p.element.style.top = `${event.y + workspace.dragCursorOffset.y}px`;
         }
     }
-
-    if (mouse.isUp) {
-        activeResizer = null;
-    }
-
-    if (activeResizer) {
-        if (activeResizer === rightResizer) {
-            canvas.width = mouse.pos.x + cursorOffset.x;
-        } else if (activeResizer === bottomResizer) {
-            canvas.height = mouse.pos.y + cursorOffset.y;
-        } else if (activeResizer === cornerResizer) {
-            canvas.width = mouse.pos.x + cursorOffset.x;
-            canvas.height = mouse.pos.y + cursorOffset.y;
-        }
-
-        const w = canvas.width - RESIZER_SIDE;
-        const h = canvas.height - RESIZER_SIDE;
-
-        rightResizer.pos.x = w;
-        rightResizer.size.y = h;
-
-        bottomResizer.pos.y = h;
-        bottomResizer.size.x = w;
-
-        cornerResizer.pos.x = w;
-        cornerResizer.pos.y = h;
-
-        const newbuf: Cell[][] = makeCells();
-
-        for (let i = 0; i < buf.length; i++) {
-            for (let j = 0; j < buf[i]!.length; j++) {
-                if (i < newbuf.length && j < newbuf[i]!.length) {
-                    newbuf[i]![j]!.symbol = buf[i]![j]!.symbol;
-                }
-            }
-        }
-
-        buf = newbuf;
-    }
-
-    rightResizer.color = "lightgray";
-    bottomResizer.color = "lightgray";
-    cornerResizer.color = "lightgray";
-    if (activeResizer) {
-        activeResizer.color = "gray";
-    } else {
-        if (mouse.isInsideRect(rightResizer)) {
-            rightResizer.color = "gray";
-        } else if (mouse.isInsideRect(bottomResizer)) {
-            bottomResizer.color = "gray";
-        } else if (mouse.isInsideRect(cornerResizer)) {
-            cornerResizer.color = "gray";
-        }
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
-    ctx.font = "16px monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.strokeStyle = "lightgray";
-    for (const row of buf) {
-        for (const cell of row) {
-            ctx.strokeRect(cell.pos.x, cell.pos.y, cell.size.x, cell.size.y);
-            if (cell.symbol) {
-                const {x, y} = cell.pos;
-                const w = cell.size.x;
-                const h = cell.size.y;
-                ctx.fillText(cell.symbol, x + w/2, y+h/2);
-            }
-        }
-    }
-    ctx.restore();
-
-    ctx.save();
-        ctx.fillStyle = rightResizer.color;
-        ctx.fillRect(rightResizer.pos.x, rightResizer.pos.y, rightResizer.size.x, rightResizer.size.y);
-
-        ctx.fillStyle = bottomResizer.color;
-        ctx.fillRect(bottomResizer.pos.x, bottomResizer.pos.y, bottomResizer.size.x, bottomResizer.size.y);
-
-        ctx.fillStyle = cornerResizer.color;
-        ctx.fillRect(cornerResizer.pos.x, cornerResizer.pos.y, cornerResizer.size.x, cornerResizer.size.y);
-    ctx.restore();
-
-    mouse.reset();
-    requestAnimationFrame(frames);
-}
-
-requestAnimationFrame((time) => {
-    prevtime = time;
-    requestAnimationFrame(frames);
 });
