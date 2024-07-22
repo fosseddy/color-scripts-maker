@@ -1,5 +1,24 @@
 const CELL_W = 16;
 const CELL_H = CELL_W * 1.5;
+const COLORS = [
+    "#000000",
+    "#ff0000",
+    "#00ff00",
+    "#ffff00",
+    "#0000ff",
+    "#ff00ff",
+    "#00ffff",
+    "#ffffff",
+
+    "#555555",
+    "#ffaaaa",
+    "#aaffaa",
+    "#ffffaa",
+    "#aaaaff",
+    "#ffaaff",
+    "#aaffff",
+    "#cccccc",
+];
 
 interface Vec2 {
     x: number;
@@ -80,41 +99,21 @@ function createTextArea(): Panel {
     p.content.style.width = `${20 * CELL_W}px`;
     p.content.style.height = `${8 * CELL_H}px`;
 
-
     return p;
 }
-
-const colors: string[] = [
-    "#000000",
-    "#ff0000",
-    "#00ff00",
-    "#ffff00",
-    "#0000ff",
-    "#ff00ff",
-    "#00ffff",
-    "#ffffff",
-
-    "#000000",
-    "#ff0000",
-    "#00ff00",
-    "#ffff00",
-    "#0000ff",
-    "#ff00ff",
-    "#00ffff",
-    "#ffffff",
-];
 
 function createPalette(ws: Workspace): Panel {
     const p = createPanel("div");
 
+    p.element.style.left = `${640 + 20}px`;
+    p.element.style.top = `${208 + 20}px`;
+
+    p.content.style.background = "white";
     p.content.style.width = "200px";
     p.content.style.height = "100px";
 
-    p.element.style.left = `${640 + 20}px`;
-    p.element.style.top = `${246 + 20}px`;
-
     let row = document.createElement("div");
-    for (const [i, color] of colors.entries()) {
+    for (const [i, color] of COLORS.entries()) {
         const button = document.createElement("button");
         button.style.width = `20px`;
         button.style.height = `20px`;
@@ -126,7 +125,6 @@ function createPalette(ws: Workspace): Panel {
             } else {
                 ws.brush.fgcolor = color;
             }
-
             console.log(ws.brush);
         });
 
@@ -146,94 +144,114 @@ function createPalette(ws: Workspace): Panel {
     return p;
 }
 
-function makeGrid(ws: Workspace, canvas: Panel): void {
-    let w = Math.round(parseInt(canvas.content.style.width) / CELL_W);
-    let h = Math.round(parseInt(canvas.content.style.height) / CELL_H);
-
-    while (canvas.content.firstChild) {
-        canvas.content.removeChild(canvas.content.firstChild);
-    }
-
-    let cw = `${CELL_W}px`;
-    let ch = `${CELL_H}px`;
-
-    for (let i = 0; i < h; i++) {
-        const row = document.createElement("div");
-        row.style.display = "flex";
-
-        for (let j = 0; j < w; j++) {
-            const cell = document.createElement("button");
-
-            cell.style.border = "1px solid lightgray";
-            cell.style.background = "white";
-            cell.style.minWidth = cw;
-            cell.style.minHeight = ch;
-            cell.style.width = cw;
-            cell.style.height = ch;
-            cell.style.display = "flex";
-            cell.style.alignItems = "center";
-            cell.style.justifyContent = "center";
-            cell.style.fontSize = "16px";
-
-            cell.textContent = "";
-            if (i < ws.input.length && j < ws.input[i]!.length) {
-                cell.textContent = ws.input[i]![j]!.symbol;
-            }
-
-            cell.addEventListener("click", (event: MouseEvent) => {
-                if (event.shiftKey) {
-                    cell.style.background = ws.brush.bgcolor;
-                } else {
-                    cell.textContent = ws.brush.symbol;
-                    cell.style.color = ws.brush.fgcolor;
-                }
-            });
-
-            row.appendChild(cell);
-        }
-
-        canvas.content.appendChild(row);
-    }
-}
-
 function initWorkspace(ws: Workspace): void {
     const canvas = createCanvas();
     const textarea = createTextArea();
     const palette = createPalette(ws);
 
-    ws.panels.push(canvas, textarea, palette);
-
-    makeGrid(ws, canvas);
+    ws.panels = [canvas, textarea, palette];
 
     const ta = textarea.content as HTMLTextAreaElement;
 
-    ta.addEventListener("input", () => {
-        ws.input = [];
+    // make input and grid
+    {
+        const w = Math.round(parseInt(canvas.content.style.width) / CELL_W);
+        const h = Math.round(parseInt(canvas.content.style.height) / CELL_H);
+        const cw = `${CELL_W}px`;
+        const ch = `${CELL_H}px`;
 
+        for (let i = 0; i < h; i++) {
+            const line: Char[] = [];
+            const row = document.createElement("div");
+            row.style.display = "flex";
+
+            for (let j = 0; j < w; j++) {
+                const cell = document.createElement("button");
+
+                cell.style.border = "1px solid lightgray";
+                cell.style.background = "white";
+                cell.style.minWidth = cw;
+                cell.style.minHeight = ch;
+                cell.style.width = cw;
+                cell.style.height = ch;
+                cell.style.display = "flex";
+                cell.style.alignItems = "center";
+                cell.style.justifyContent = "center";
+                cell.style.fontSize = "16px";
+                cell.textContent = " ";
+
+                cell.addEventListener("click", () => {
+                    workspace.input[i]![j]!.symbol = workspace.brush.symbol;
+                    cell.textContent = workspace.brush.symbol;
+
+                    let buf = "";
+                    for (const line of workspace.input) {
+                        for (const char of line) {
+                            buf += char.symbol;
+                        }
+                        buf = buf.trimEnd();
+                        buf += "\n";
+                    }
+                    ta.value = buf.trimEnd();
+                });
+
+                line.push({symbol: " "});
+                row.appendChild(cell);
+            }
+
+            ws.input.push(line);
+            canvas.content.appendChild(row);
+        }
+    }
+
+    ta.addEventListener("input", () => {
         const lines = ta.value.split("\n");
 
-        for (const line of lines) {
-            const cx: Char[] = [];
-            for (const c of line) {
-                cx.push({symbol: c});
+        for (let i = 0; i < workspace.input.length; i++) {
+            for (let j = 0; j < workspace.input[i]!.length; j++) {
+                workspace.input[i]![j]!.symbol = " ";
+                if (i < lines.length && j < lines[i]!.length) {
+                    workspace.input[i]![j]!.symbol = lines[i]![j]!;
+                }
             }
-            ws.input.push(cx);
         }
 
-        makeGrid(ws, canvas);
+        const rows = canvas.content.querySelectorAll("div");
+
+        for (const [i, line] of workspace.input.entries()) {
+            const row = rows[i];
+
+            if (!row) {
+                console.error("canvas row does not exist", i, rows);
+                continue;
+            }
+
+            const cells = row.querySelectorAll("button");
+
+            for (const [j, char] of line.entries()) {
+                const cell = cells[j];
+
+                if (!cell) {
+                    console.error("canvas cell does not exist", j, row);
+                    continue;
+                }
+
+                cell.textContent = char.symbol;
+            }
+        }
     });
 
-    new ResizeObserver(() => {
-        makeGrid(ws, canvas);
-    }).observe(canvas.content);
+    //new ResizeObserver(() => {
+    //    makeGrid(ws, canvas);
+    //}).observe(canvas.content);
 }
 
 const workspace: Workspace = {
     panels: [],
     input: [],
     brush: {
-        fgcolor: colors[0]!,
-        bgcolor: colors[7]!,
+        fgcolor: COLORS[0]!,
+        bgcolor: COLORS[7]!,
         symbol: "█"
     },
     dragCursorOffset: {x: 0, y: 0}
@@ -261,6 +279,8 @@ for (const p of workspace.panels) {
     });
 
     p.header.addEventListener("mousedown", (event: MouseEvent) => {
+        event.preventDefault();
+
         p.isDragged = true;
         workspace.dragCursorOffset = {x: p.element.offsetLeft - event.x, y: p.element.offsetTop - event.y};
 
@@ -274,7 +294,7 @@ for (const p of workspace.panels) {
     });
 }
 
-window.addEventListener("mouseup", (event: MouseEvent) => {
+window.addEventListener("mouseup", () => {
     for (const p of workspace.panels) {
         if (p.isDragged) {
             document.body.style.cursor = "grab";
@@ -292,7 +312,6 @@ window.addEventListener("mouseup", (event: MouseEvent) => {
             } else if (p.element.offsetLeft + CELL_W*2 > window.innerWidth) {
                 p.element.style.left = `${window.innerWidth - CELL_W*2}px`;
             }
-
         }
     }
 });
