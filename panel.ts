@@ -10,6 +10,7 @@ export class Panel<T extends Tag = Tag> {
 
     constructor(tag: T) {
         this.content = this.element.appendChild(document.createElement(tag));
+        this.content.style.background = "white";
 
         this.element.style.position = "absolute";
         this.element.style.border = "1px solid black";
