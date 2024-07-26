@@ -21,8 +21,12 @@ export class Panel<T extends Tag = Tag> {
     }
 }
 
-export function initPanelsEvents(panels: Panel<Tag>[]): void {
+export function initPanels(panels: Panel<Tag>[]): void {
+    document.body.style.cursor = "auto";
+
     for (const p of panels) {
+        document.body.appendChild(p.element);
+
         p.header.addEventListener("mouseover", () => {
             if (!p.isDragged) {
                 document.body.style.cursor = "grab";
