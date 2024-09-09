@@ -31,11 +31,12 @@
         "allowUnusedLabels": false,                        /* Disable error reporting for unused labels. */
 
         /* Production Type Checking */
-        "noUnusedParameters": true,                       /* Raise an error when a function parameter isn't read. */
-        "noUnusedLocals": true,                           /* Enable error reporting when local variables aren't read. */
-        "allowUnreachableCode": false,                     /* Disable error reporting for unreachable code. */
+        "noUnusedParameters": false,                       /* Raise an error when a function parameter isn't read. */
+        "noUnusedLocals": false,                           /* Enable error reporting when local variables aren't read. */
+        "allowUnreachableCode": true,                     /* Disable error reporting for unreachable code. */
 
         /* Completeness */
         "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
-    }
+    },
+    "exclude": ["__old"]
 }
