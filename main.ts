@@ -1,3 +1,6 @@
+// TODO(art), 10.09.24: Show cells with no symbol and not default foreground.
+// It is not obvious that cell has colored foreground, until you insert symbol.
+
 type HTMLTag = keyof HTMLElementTagNameMap;
 
 interface Color {
@@ -255,8 +258,8 @@ const palette: Panel<"div"> = (() => {
     const palette = new Panel("div");
     panels.push(palette);
 
-    palette.element.style.left = textarea.element.style.left;
-    palette.element.style.top = `${parseInt(textarea.content.style.height) + 36}px`;
+    palette.element.style.left = `${parseInt(textarea.element.style.left) + parseInt(textarea.content.style.width) + 20}px`;
+    palette.element.style.top = textarea.element.style.top;
 
     const selectedBrush = palette.content.appendChild(document.createElement("div"));
     selectedBrush.style.width = "fit-content";
