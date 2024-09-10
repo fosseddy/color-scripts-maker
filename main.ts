@@ -105,7 +105,6 @@ class Cell {
     }
 }
 
-// state
 const panels: Panel[] = [];
 
 let cells: Cell[][] = [];
@@ -115,21 +114,24 @@ let brush = {
     bg: BG
 };
 
-// canvas
-const canvas = new Panel("div");
-panels.push(canvas);
+const canvas: Panel<"div"> = (() => {
+    const canvas = new Panel("div");
+    panels.push(canvas);
 
-canvas.content.style.width = `${20 * CELL_WIDTH}px`;
-canvas.content.style.height = `${10 * CELL_HEIGHT}px`;
-canvas.content.style.resize = "both";
-canvas.content.style.overflow = "hidden";
-canvas.content.style.display = "flex";
-canvas.content.style.flexDirection = "column";
+    canvas.content.style.width = `${20 * CELL_WIDTH}px`;
+    canvas.content.style.height = `${10 * CELL_HEIGHT}px`;
+    canvas.content.style.resize = "both";
+    canvas.content.style.overflow = "hidden";
+    canvas.content.style.display = "flex";
+    canvas.content.style.flexDirection = "column";
 
-new ResizeObserver(() => {
-    makeCells();
-    makeCanvasHTMLGrid();
-}).observe(canvas.content);
+    new ResizeObserver(() => {
+        makeCells();
+        makeCellsHTML();
+    }).observe(canvas.content);
+
+    return canvas;
+})();
 
 function makeCells(): void {
     const newcells: Cell[][] = [];
@@ -151,17 +153,14 @@ function makeCells(): void {
                     cell.setSymbol(lines[i]![j]!);
                 }
             }
-
             row.push(cell);
         }
-
         newcells.push(row);
     }
-
     cells = newcells;
 }
 
-function makeCanvasHTMLGrid(): void {
+function makeCellsHTML(): void {
     while (canvas.content.firstChild) {
         canvas.content.firstChild.remove();
     }
@@ -201,145 +200,147 @@ function makeCanvasHTMLGrid(): void {
     }
 }
 
-// textarea
-const textarea = new Panel("textarea");
-panels.push(textarea);
+const textarea: Panel<"textarea"> = (() => {
+    const textarea = new Panel("textarea");
+    panels.push(textarea);
 
-textarea.element.style.border = "none";
-textarea.element.style.left = `${parseInt(canvas.content.style.width) + 20}px`;
-textarea.header.style.border = "1px solid black";
-textarea.header.style.borderBottom = "none";
-textarea.content.style.borderRadius = "0px";
-textarea.content.style.border= "1px solid black";
-textarea.content.style.width = "200px";
-textarea.content.style.height = "100px";
+    textarea.element.style.border = "none";
+    textarea.element.style.left = `${parseInt(canvas.content.style.width) + 20}px`;
 
-textarea.content.addEventListener("input", () => {
-    const lines = textarea.content.value.split("\n");
-    for (let i = 0; i < cells.length; i++) {
-        for (let j = 0; j < cells[i]!.length; j++) {
-            let sym = " ";
-            if (i < lines.length && j < lines[i]!.length) {
-                sym = lines[i]![j]!;
+    textarea.header.style.border = "1px solid black";
+    textarea.header.style.borderBottom = "none";
+
+    textarea.content.style.borderRadius = "0px";
+    textarea.content.style.border= "1px solid black";
+    textarea.content.style.width = "200px";
+    textarea.content.style.height = "100px";
+
+    textarea.content.addEventListener("input", () => {
+        const lines = textarea.content.value.split("\n");
+        for (let i = 0; i < cells.length; i++) {
+            for (let j = 0; j < cells[i]!.length; j++) {
+                let sym = " ";
+                if (i < lines.length && j < lines[i]!.length) {
+                    sym = lines[i]![j]!;
+                }
+                cells[i]![j]!.setSymbol(sym);
             }
-            cells[i]![j]!.setSymbol(sym);
         }
-    }
-});
-
-// palette
-const palette = new Panel("div");
-panels.push(palette);
-
-palette.element.style.left = textarea.element.style.left;
-palette.element.style.top = `${parseInt(textarea.content.style.height) + 36}px`;
-
-const brushElem = palette.content.appendChild(document.createElement("p"));
-brushElem.style.width = "fit-content";
-brushElem.style.marginBottom = "10px";
-brushElem.style.color = brush.fg.value;
-brushElem.style.background = brush.bg.value;
-brushElem.textContent = brush.symbol;
-
-const colorsWrap = palette.content.appendChild(document.createElement("div"));
-colorsWrap.style.display = "flex";
-colorsWrap.style.flexDirection = "column";
-colorsWrap.style.gap = "1px";
-colorsWrap.style.marginBottom = "10px";
-
-let colorRow: HTMLDivElement | undefined;
-for (let i = 0; i < COLORS.length; i++) {
-    const color = COLORS[i]!;
-
-    if (i === 0 || i === 8) {
-        colorRow = document.createElement("div");
-        colorRow.style.display = "flex";
-        colorRow.style.gap = "1px";
-        colorsWrap.appendChild(colorRow);
-    }
-
-    const b = document.createElement("button");
-
-    b.style.width = b.style.height = "20px";
-    b.style.background = color.value;
-    b.style.border = "1px solid black";
-
-    b.addEventListener("click", () => {
-        brush.fg = color;
-        brushElem.style.color = color.value;
     });
 
-    // TODO(art), 09.09.24: more user friendly controls
-    b.addEventListener("contextmenu", (event: MouseEvent) => {
-        event.preventDefault();
-        brush.bg = color;
-        brushElem.style.background = color.value;
-    });
+    return textarea;
+})();
 
-    if (colorRow) {
-        colorRow.appendChild(b);
+const palette: Panel<"div"> = (() => {
+    const palette = new Panel("div");
+    panels.push(palette);
+
+    palette.element.style.left = textarea.element.style.left;
+    palette.element.style.top = `${parseInt(textarea.content.style.height) + 36}px`;
+
+    const selectedBrush = palette.content.appendChild(document.createElement("div"));
+    selectedBrush.style.width = "fit-content";
+    selectedBrush.style.marginBottom = "10px";
+    selectedBrush.style.color = brush.fg.value;
+    selectedBrush.style.background = brush.bg.value;
+    selectedBrush.textContent = brush.symbol;
+
+    const colorPicker = palette.content.appendChild(document.createElement("div"));
+    colorPicker.style.display = "flex";
+    colorPicker.style.flexDirection = "column";
+    colorPicker.style.gap = "1px";
+    colorPicker.style.marginBottom = "10px";
+
+    for (const row of [COLORS.slice(0, 8), COLORS.slice(8)]) {
+        const div = document.createElement("div");
+        div.style.display = "flex";
+        div.style.gap = "1px";
+
+        for (const color of row) {
+            const b = document.createElement("button");
+            b.style.width = b.style.height = "20px";
+            b.style.background = color.value;
+            b.style.border = "1px solid black";
+
+            b.addEventListener("click", () => {
+                brush.fg = color;
+                selectedBrush.style.color = color.value;
+            });
+            // TODO(art), 09.09.24: more user friendly controls
+            b.addEventListener("contextmenu", (event: MouseEvent) => {
+                event.preventDefault();
+                brush.bg = color;
+                selectedBrush.style.background = color.value;
+            });
+
+            div.appendChild(b);
+        }
+        colorPicker.appendChild(div);
     }
-}
 
-const ta = palette.content.appendChild(document.createElement("textarea"));
+    const symbolPicker = palette.content.appendChild(document.createElement("textarea"));
+    symbolPicker.style.display = "block";
+    symbolPicker.style.width = "350px";
+    symbolPicker.style.height = "390px";
+    symbolPicker.value = SYMS;
 
-ta.style.display = "block";
-ta.style.width = "350px";
-ta.style.height = "390px";
+    symbolPicker.addEventListener("select", () => {
+        let sel = symbolPicker.value
+            .slice(symbolPicker.selectionStart, symbolPicker.selectionEnd)
+            .trim();
 
-ta.value = SYMS;
-
-ta.addEventListener("select", () => {
-    let sel = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
-
-    if (sel === "") {
-        return;
-    }
-
-    if (sel.length > 1) {
-        sel = sel[sel.length - 1]!;
-    }
-
-    brush.symbol = sel;
-    brushElem.textContent = sel;
-});
-
-// output
-const output = new Panel("div");
-panels.push(output);
-{
-output.element.style.top = `${parseInt(canvas.content.style.height) + 36}px`;
-
-const btn = output.content.appendChild(document.createElement("button"));
-const ta = output.content.appendChild(document.createElement("textarea"));
-
-btn.style.display = "block";
-btn.textContent = "generate output";
-
-ta.style.borderRadius = "0px";
-ta.style.display = "block";
-ta.style.border = "none";
-ta.style.borderTop = "1px solid black";
-
-btn.addEventListener("click", () => {
-    let buf = `#!/bin/bash\n\necho -e "$(cat << 'EOF'\n`;
-
-    for (const row of cells) {
-        for (const cell of row) {
-            let sym = cell.symbol;
-            if (["\\"].includes(sym)) {
-                sym += "\\";
-            }
-            buf += `${ESC}[${30 + cell.fg.code};${40 + cell.bg.code}m${sym}`;
+        if (sel === "") {
+            return;
         }
 
-        buf += `${ESC}[0m\n`;
-    }
+        if (sel.length > 1) {
+            sel = sel[sel.length - 1]!;
+        }
 
-    buf += 'EOF\n)"';
-    ta.value = buf;
-});
-}
+        brush.symbol = sel;
+        selectedBrush.textContent = sel;
+    });
+
+    return palette;
+})();
+
+const output: Panel<"div"> = (() => {
+    const output = new Panel("div");
+    panels.push(output);
+
+    output.element.style.top = `${parseInt(canvas.content.style.height) + 36}px`;
+
+    const btn = output.content.appendChild(document.createElement("button"));
+    btn.style.display = "block";
+    btn.textContent = "generate output";
+
+    btn.addEventListener("click", () => {
+        let buf = `#!/bin/bash\n\necho -e "$(cat << 'EOF'\n`;
+
+        for (const row of cells) {
+            for (const cell of row) {
+                let sym = cell.symbol;
+                if (["\\"].includes(sym)) {
+                    sym += "\\";
+                }
+                buf += `${ESC}[${30 + cell.fg.code};${40 + cell.bg.code}m${sym}`;
+            }
+
+            buf += `${ESC}[0m\n`;
+        }
+
+        buf += 'EOF\n)"';
+        result.value = buf;
+    });
+
+    const result = output.content.appendChild(document.createElement("textarea"));
+    result.style.borderRadius = "0px";
+    result.style.display = "block";
+    result.style.border = "none";
+    result.style.borderTop = "1px solid black";
+
+    return output;
+})();
 
 document.body.style.cursor = "auto";
 
@@ -368,8 +369,10 @@ for (const panel of panels) {
         };
 
         document.body.style.cursor = "grabbing";
-        panel.header.style.background = "black";
+        panel.header.style.background = "gray";
 
+        // art, 10.09.24: zIndex should be panel variable, because resetting
+        // to 0 breaks the order of panels that user made
         for (const p of panels) {
             p.element.style.zIndex = "0";
         }
@@ -384,6 +387,7 @@ window.addEventListener("mouseup", () => {
             panel.header.style.background = "lightgray";
             panel.isDragged = false;
 
+            // art: make panel visible if outside the screen
             const pad = 20;
             if (panel.element.offsetLeft + panel.element.offsetWidth < pad) {
                 panel.element.style.left = `${pad - panel.element.offsetWidth}px`;
