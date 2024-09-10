@@ -15,9 +15,9 @@ const SYMS = `█ ▄ ■ ▀ ▌ ▐ ░ ▒ ▓
 ‼ ¶ § ▬ ↨ ↑ ↓ → ← ∟ ↔ ▲ ▼ ⌂
 
 ! " # $ % & ' ( ) * + , - . / : ; < = > ?
-@ ª º ¿ ⌐ ¬ ½ ¼ ¡ « » [ \ ] ^ _ \` { | } ~
+@ ª º ¿ ⌐ ¬ ½ ¼ ¡ « » [ \\ ] ^ _ \` { | } ~
 
-ɑ ϐ ᴦ ᴨ ∑ ơ µ ᴛ ɸ ϴ Ω ẟ ∞ ∅ ∈
+ɑ ϐ ᴦ ᴨ ∑ ơ µ ᴛ ɸ ϴ Ω ẟ ∞ ∈
 ∩ ≡ ± ≥ ≤ ⌠ ⌡ ÷ ≈ ° ∙ · √ ⁿ ²
 
 0 1 2 3 4 5 6 7 8 9
@@ -245,6 +245,7 @@ const colorsWrap = palette.content.appendChild(document.createElement("div"));
 colorsWrap.style.display = "flex";
 colorsWrap.style.flexDirection = "column";
 colorsWrap.style.gap = "1px";
+colorsWrap.style.marginBottom = "10px";
 
 let colorRow: HTMLDivElement | undefined;
 for (let i = 0; i < COLORS.length; i++) {
@@ -283,8 +284,8 @@ for (let i = 0; i < COLORS.length; i++) {
 const ta = palette.content.appendChild(document.createElement("textarea"));
 
 ta.style.display = "block";
-ta.style.width = "660px";
-ta.style.height = "175px";
+ta.style.width = "350px";
+ta.style.height = "390px";
 
 ta.value = SYMS;
 
