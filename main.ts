@@ -271,7 +271,7 @@ const palette: Panel<"div"> = (() => {
     options.style.gap = "5px";
 
     const clearBrushColors = options.appendChild(document.createElement("button"));
-    clearBrushColors.textContent = "default colors";
+    clearBrushColors.textContent = "reset to default colors";
     clearBrushColors.addEventListener("click", () => {
         brush.fg = FG;
         brush.bg = BG;
