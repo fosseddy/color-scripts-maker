@@ -111,7 +111,11 @@ let cells: Cell[][] = [];
 let brush = {
     symbol: "█",
     fg: FG,
-    bg: BG
+    bg: BG,
+    isClearing: false,
+    isUsingSymbol: false,
+    isUsingForeground: false,
+    isUsingBackground: false
 };
 
 const canvas: Panel<"div"> = (() => {
@@ -180,9 +184,25 @@ function makeCellsHTML(): void {
             cell.element.style.height = cell.element.style.minHeight = ch;
 
             cell.element.addEventListener("click", () => {
-                cell.setSymbol(brush.symbol);
-                cell.setFG(brush.fg);
-                cell.setBG(brush.bg);
+                let sym = brush.symbol;
+                let fg = brush.fg;
+                let bg = brush.bg;
+
+                if (brush.isClearing) {
+                    sym = " ";
+                    fg = FG;
+                    bg = BG;
+                }
+
+                if (brush.isUsingSymbol) {
+                    cell.setSymbol(sym);
+                }
+                if (brush.isUsingForeground) {
+                    cell.setFG(fg);
+                }
+                if (brush.isUsingBackground) {
+                    cell.setBG(bg);
+                }
 
                 let buf = "";
                 for (const row of cells) {
@@ -245,7 +265,58 @@ const palette: Panel<"div"> = (() => {
     selectedBrush.style.background = brush.bg.value;
     selectedBrush.textContent = brush.symbol;
 
-    const colorPicker = palette.content.appendChild(document.createElement("div"));
+    const options = palette.content.appendChild(document.createElement("div"));
+    options.style.display = "flex";
+    options.style.flexDirection = "column";
+    options.style.gap = "5px";
+
+    const clearBrushColors = options.appendChild(document.createElement("button"));
+    clearBrushColors.textContent = "default colors";
+    clearBrushColors.addEventListener("click", () => {
+        brush.fg = FG;
+        brush.bg = BG;
+        selectedBrush.style.color = FG.value;
+        selectedBrush.style.background = BG.value;
+    });
+
+    function createCheckbox(container: HTMLElement, labelText: string): HTMLInputElement {
+        const input = document.createElement("input");
+        input.type = "checkbox";
+
+        const label = document.createElement("label");
+        label.style.display = "flex";
+        label.style.gap = "10px";
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(labelText));
+
+        container.appendChild(label);
+        return input;
+    }
+
+    const useSymbol = createCheckbox(options, "use symbol");
+    useSymbol.checked = brush.isUsingSymbol = true;
+    useSymbol.addEventListener("change", () => {
+        brush.isUsingSymbol = useSymbol.checked;
+    });
+
+    const useForeground = createCheckbox(options, "use foreground");
+    useForeground.checked = brush.isUsingForeground = true;
+    useForeground.addEventListener("change", () => {
+        brush.isUsingForeground = useForeground.checked;
+    });
+
+    const useBackground = createCheckbox(options, "use background");
+    useBackground.checked = brush.isUsingBackground = true;
+    useBackground.addEventListener("change", () => {
+        brush.isUsingBackground = useBackground.checked;
+    });
+
+    const clearCell = createCheckbox(options, "clear cell");
+    clearCell.addEventListener("change", () => {
+        brush.isClearing = clearCell.checked;
+    });
+
+    const colorPicker = options.appendChild(document.createElement("div"));
     colorPicker.style.display = "flex";
     colorPicker.style.flexDirection = "column";
     colorPicker.style.gap = "1px";
@@ -261,7 +332,6 @@ const palette: Panel<"div"> = (() => {
             b.style.width = b.style.height = "20px";
             b.style.background = color.value;
             b.style.border = "1px solid black";
-
             b.addEventListener("click", () => {
                 brush.fg = color;
                 selectedBrush.style.color = color.value;
@@ -283,7 +353,6 @@ const palette: Panel<"div"> = (() => {
     symbolPicker.style.width = "350px";
     symbolPicker.style.height = "390px";
     symbolPicker.value = SYMS;
-
     symbolPicker.addEventListener("select", () => {
         let sel = symbolPicker.value
             .slice(symbolPicker.selectionStart, symbolPicker.selectionEnd)
@@ -387,7 +456,7 @@ window.addEventListener("mouseup", () => {
             panel.header.style.background = "lightgray";
             panel.isDragged = false;
 
-            // art: make panel visible if outside the screen
+            // make panel visible if outside the screen
             const pad = 20;
             if (panel.element.offsetLeft + panel.element.offsetWidth < pad) {
                 panel.element.style.left = `${pad - panel.element.offsetWidth}px`;
